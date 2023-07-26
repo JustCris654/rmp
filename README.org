@@ -1,6 +1,5 @@
-#+title: Readme
+#+title: Rust Music Player
 
-* Rust Music Player
 Music player written in rust
 It has minimal feature but it is meant to be smart enough to pick your favourite music when launched without args, when you need to play your music and start working ~RMP~ comes to your help.
 
