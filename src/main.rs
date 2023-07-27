@@ -1,9 +1,9 @@
 use clap::Parser;
-use rdev::listen;
+use rdev::{listen, EventType};
 use rodio::{Decoder, OutputStream, Sink};
 use std::fs::File;
 use std::io::BufReader;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::mpsc;
 use std::thread;
 
 #[derive(Parser)]
@@ -47,30 +47,28 @@ fn main() {
     let receiver = thread::spawn(move || {
         for event in receiver.iter() {
             println!("Event: {:?}", event);
-            if let Some(input) = event.name {
-                let input = input.to_lowercase();
-
-                match input.as_str() {
-                    " " => {
-                        if sink.is_paused() {
-                            sink.play();
-                        } else {
-                            sink.pause();
-                        }
+            match event.event_type {
+                EventType::KeyPress(rdev::Key::Space) => {
+                    if sink.is_paused() {
+                        sink.play();
+                    } else {
+                        sink.pause();
                     }
-                    "q" => {
-                        thread::sleep(std::time::Duration::from_millis(50));
-                        sink.stop();
-                        return;
-                    }
-                    "up" => {
-                        sink.set_volume(sink.volume() + 0.1);
-                    }
-                    "down" => {
-                        sink.set_volume(sink.volume() - 0.1);
-                    }
-                    _ => {}
                 }
+                EventType::KeyPress(rdev::Key::KeyQ) => {
+                    sink.stop();
+                    return;
+                }
+                EventType::KeyPress(rdev::Key::UpArrow) => {
+                    sink.set_volume(sink.volume() + 0.1);
+                }
+                EventType::KeyPress(rdev::Key::DownArrow) => {
+                    sink.set_volume(sink.volume() - 0.1);
+                }
+                EventType::KeyPress(rdev::Key::KeyM) => {
+                    sink.set_volume(0.0);
+                }
+                _ => {}
             }
         }
     });
