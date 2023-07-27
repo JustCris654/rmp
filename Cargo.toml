@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.3.19", features = ["derive"] }
-rdev = "0.5.3"
+crossterm = "0.26.1"
 rodio = "0.17.1"

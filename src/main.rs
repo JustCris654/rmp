@@ -1,9 +1,10 @@
 use clap::Parser;
-use rdev::{listen, EventType};
+use crossterm::event::{read, Event, KeyCode};
+use crossterm::execute;
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
 use rodio::{Decoder, OutputStream, Sink};
 use std::fs::File;
-use std::io::BufReader;
-use std::sync::mpsc;
+use std::io::{stdout, BufReader};
 use std::thread;
 
 #[derive(Parser)]
@@ -29,49 +30,30 @@ fn main() {
 
     sink.append(source);
 
-    // thread::sleep(Duration::from_secs(5));
+    enable_raw_mode().unwrap();
 
-    let (sender, receiver) = mpsc::channel();
-    // let receiver = Arc::new(Mutex::new(receiver));
+    // clear terminal
+    let mut stdout = stdout();
+    execute!(stdout, Clear(ClearType::All)).unwrap();
 
-    // listener thread
-    let _listener = thread::spawn(move || {
-        listen(move |event| {
-            sender
-                .send(event)
-                .unwrap_or_else(|e| println!("Could not send event {:?}", e));
-        })
-    });
-
-    println!("Listening for events");
-    let receiver = thread::spawn(move || {
-        for event in receiver.iter() {
-            println!("Event: {:?}", event);
-            match event.event_type {
-                EventType::KeyPress(rdev::Key::Space) => {
+    let input_handler = thread::spawn(move || loop {
+        if let Event::Key(event) = read().unwrap() {
+            match event.code {
+                KeyCode::Esc | KeyCode::Char('q') => break,
+                KeyCode::Char(' ') => {
                     if sink.is_paused() {
                         sink.play();
                     } else {
                         sink.pause();
                     }
                 }
-                EventType::KeyPress(rdev::Key::KeyQ) => {
-                    sink.stop();
-                    return;
-                }
-                EventType::KeyPress(rdev::Key::UpArrow) => {
-                    sink.set_volume(sink.volume() + 0.1);
-                }
-                EventType::KeyPress(rdev::Key::DownArrow) => {
-                    sink.set_volume(sink.volume() - 0.1);
-                }
-                EventType::KeyPress(rdev::Key::KeyM) => {
-                    sink.set_volume(0.0);
-                }
                 _ => {}
             }
         }
     });
 
-    receiver.join().unwrap();
+    input_handler.join().unwrap();
+
+    disable_raw_mode().unwrap();
+    println!("Raw mode disabled");
 }
