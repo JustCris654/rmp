@@ -16,16 +16,14 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let filepath = args
-        .path
-        .unwrap_or("./media/02 - Universally Speaking.flac".to_string());
+    let filepath = args.path.unwrap();
 
     // get an output stream to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
     let sink = Sink::try_new(&stream_handle).unwrap();
 
-    let file = BufReader::new(File::open(filepath).unwrap());
+    let file = BufReader::new(File::open(&filepath).unwrap());
     let source = Decoder::new(file).unwrap();
 
     sink.append(source);
@@ -36,18 +34,36 @@ fn main() {
     let mut stdout = stdout();
     execute!(stdout, Clear(ClearType::All)).unwrap();
 
-    let input_handler = thread::spawn(move || loop {
-        if let Event::Key(event) = read().unwrap() {
-            match event.code {
-                KeyCode::Esc | KeyCode::Char('q') => break,
-                KeyCode::Char(' ') => {
-                    if sink.is_paused() {
-                        sink.play();
-                    } else {
-                        sink.pause();
+    let input_handler = thread::spawn(move || {
+        loop {
+            if let Event::Key(event) = read().unwrap() {
+                match event.code {
+                    KeyCode::Esc | KeyCode::Char('q') => break,
+                    KeyCode::Char(' ') => {
+                        if sink.is_paused() {
+                            sink.play();
+                        } else {
+                            sink.pause();
+                        }
                     }
+                    KeyCode::Char('s') => {
+                        // shuffle
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('l') => {
+                        // next music in track list
+                        sink.skip_one();
+                    }
+                    KeyCode::Char('p') | KeyCode::Char('h') => {
+                        // previous in track list
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        // volume up
+                    }
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        // volume down
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
     });
