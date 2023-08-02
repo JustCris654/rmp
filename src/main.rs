@@ -23,7 +23,7 @@ fn main() {
 
     let sink = Sink::try_new(&stream_handle).unwrap();
 
-    let file = BufReader::new(File::open(&filepath).unwrap());
+    let file = BufReader::new(File::open(filepath).unwrap());
     let source = Decoder::new(file).unwrap();
 
     sink.append(source);
