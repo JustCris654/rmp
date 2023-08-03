@@ -18,7 +18,6 @@ struct Args {
 }
 
 fn add_file_to_sink(sink: &Sink, filepath: &str) {
-    println!("new file: {}", filepath);
     let file = BufReader::new(File::open(filepath).unwrap());
     let source = Decoder::new(file).unwrap();
 
@@ -50,32 +49,27 @@ fn main() {
 
     let filepath = Path::new(&filepath);
 
-    let md = metadata(&filepath).unwrap();
+    let md = metadata(filepath).unwrap();
 
     assert!(
-        md.is_file() == false,
+        !md.is_file(),
         "Not implemented -> start with file and continue with music saved in db"
     );
 
-    let mut queue: VecDeque<PathBuf> = get_folder_files(&filepath, false).unwrap();
+    let mut queue: VecDeque<PathBuf> = get_folder_files(filepath, false).unwrap();
 
     // get an output stream to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
     let sink = Sink::try_new(&stream_handle).unwrap();
 
-    add_file_to_sink(
-        &sink,
-        &queue.pop_back().unwrap().as_path().to_str().unwrap(),
-    );
+    add_file_to_sink(&sink, queue.pop_back().unwrap().as_path().to_str().unwrap());
 
     enable_raw_mode().unwrap();
 
     // clear terminal
     let mut stdout = stdout();
     execute!(stdout, Clear(ClearType::All)).unwrap();
-
-    println!("Queue length: {}", sink.len());
 
     let input_handler = thread::spawn(move || {
         loop {
@@ -100,12 +94,10 @@ fn main() {
 
                         add_file_to_sink(
                             &sink,
-                            &queue.pop_back().unwrap().as_path().to_str().unwrap(),
+                            queue.pop_back().unwrap().as_path().to_str().unwrap(),
                         );
 
                         sink.play();
-
-                        println!("Queue length: {}", sink.len());
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
                         // previous in track list
