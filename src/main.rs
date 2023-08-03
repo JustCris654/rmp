@@ -64,6 +64,7 @@ fn main() {
     let sink = Sink::try_new(&stream_handle).unwrap();
 
     add_file_to_sink(&sink, queue.pop_back().unwrap().as_path().to_str().unwrap());
+    add_file_to_sink(&sink, queue.pop_back().unwrap().as_path().to_str().unwrap());
 
     enable_raw_mode().unwrap();
 
@@ -90,14 +91,14 @@ fn main() {
                         // next music in track list
                         execute!(std::io::stdout(), Print("Skipping a song\n".to_string()))
                             .unwrap();
-                        sink.clear();
+                        sink.skip_one();
 
-                        add_file_to_sink(
-                            &sink,
-                            queue.pop_back().unwrap().as_path().to_str().unwrap(),
-                        );
+                        // add_file_to_sink(
+                        //     &sink,
+                        //     queue.pop_back().unwrap().as_path().to_str().unwrap(),
+                        // );
 
-                        sink.play();
+                        // sink.play();
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
                         // previous in track list

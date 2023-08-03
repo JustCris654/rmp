@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.3.19", features = ["derive"] }
 crossterm = "0.26.1"
-rodio = "0.17.1"
+rodio = { git = "https://github.com/RustAudio/rodio.git" }
