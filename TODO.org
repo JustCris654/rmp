@@ -1,1 +1,7 @@
 #+title: RMP Todo
+
+* RMP TODOs [1/4]
+- [X] Queue files in the folder and listen to them sequentially
+- [ ] Randomize the queue -> shuffle
+- [ ] Infinite listening reitereting the queue
+- [ ] Database
