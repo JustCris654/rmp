@@ -84,6 +84,9 @@ fn main() {
     let mut stdout = stdout();
     execute!(stdout, Clear(ClearType::All)).unwrap();
 
+    // checks every 1 second if the sink has less than one file in the queue, if true
+    // and infinite flag is set reappend the queue of files in the sink
+    // if false do nothing
     let sh_sink = Arc::clone(&sink);
     let _sink_handler = thread::spawn(move || loop {
         thread::sleep(std::time::Duration::from_secs(1));
