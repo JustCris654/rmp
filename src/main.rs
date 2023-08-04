@@ -1,7 +1,7 @@
 use clap::Parser;
 use crossterm::event::{read, Event, KeyCode};
+use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
-use crossterm::{execute, style::Print};
 use rodio::{Decoder, OutputStream, Sink};
 use std::collections::VecDeque;
 use std::fs::File;
@@ -93,16 +93,7 @@ fn main() {
                     }
                     KeyCode::Char('n') | KeyCode::Char('l') => {
                         // next music in track list
-                        execute!(std::io::stdout(), Print("Skipping a song\n".to_string()))
-                            .unwrap();
                         sink.skip_one();
-
-                        // add_file_to_sink(
-                        //     &sink,
-                        //     queue.pop_back().unwrap().as_path().to_str().unwrap(),
-                        // );
-
-                        // sink.play();
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
                         // previous in track list
