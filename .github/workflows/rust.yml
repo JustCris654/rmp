@@ -14,12 +14,12 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    steps:
+    - uses: actions/checkout@v3
     - name: install linux deps
       run: |
         sudo apt update
         sudo apt install -y --no-install-recommends libasound2-dev pkg-config
-    steps:
-    - uses: actions/checkout@v3
     - name: Build
       run: cargo build --verbose
     - name: Run tests
