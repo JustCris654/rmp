@@ -36,7 +36,7 @@ fn get_folder_files(folder: &Path, rec: bool) -> io::Result<VecDeque<PathBuf>> {
         if path.is_dir() && rec {
             files.extend(get_folder_files(&path, rec)?);
         } else {
-            files.push_front(path);
+            files.push_back(path);
         }
     }
 
@@ -56,15 +56,19 @@ fn main() {
         "Not implemented -> start with file and continue with music saved in db"
     );
 
-    let mut queue: VecDeque<PathBuf> = get_folder_files(filepath, false).unwrap();
+    // get all files in the folder, this queue will not be used directly
+    let folder_files: VecDeque<PathBuf> = get_folder_files(filepath, false).unwrap();
 
     // get an output stream to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
     let sink = Sink::try_new(&stream_handle).unwrap();
 
-    add_file_to_sink(&sink, queue.pop_back().unwrap().as_path().to_str().unwrap());
-    add_file_to_sink(&sink, queue.pop_back().unwrap().as_path().to_str().unwrap());
+    // append to the sink all files in the queue
+    let _ = folder_files
+        .iter()
+        .map(|file| add_file_to_sink(&sink, file.as_path().to_str().unwrap()))
+        .collect::<Vec<_>>();
 
     enable_raw_mode().unwrap();
 
