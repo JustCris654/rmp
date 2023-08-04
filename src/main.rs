@@ -8,6 +8,7 @@ use std::fs::File;
 use std::fs::{metadata, read_dir};
 use std::io::{self, stdout, BufReader};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
 #[derive(Parser)]
@@ -17,7 +18,7 @@ struct Args {
     shuffle: bool,
 }
 
-fn add_file_to_sink(sink: &Sink, filepath: &str) {
+fn add_file_to_sink(sink: MutexGuard<Sink>, filepath: &str) {
     let file = BufReader::new(File::open(filepath).unwrap());
     let source = Decoder::new(file).unwrap();
 
@@ -51,6 +52,8 @@ fn main() {
 
     let md = metadata(filepath).unwrap();
 
+    let infinite = true;
+
     assert!(
         !md.is_file(),
         "Not implemented -> start with file and continue with music saved in db"
@@ -62,12 +65,17 @@ fn main() {
     // get an output stream to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle).unwrap()));
 
     // append to the sink all files in the queue
     let _ = folder_files
         .iter()
-        .map(|file| add_file_to_sink(&sink, file.as_path().to_str().unwrap()))
+        .map(|file| {
+            add_file_to_sink(
+                sink.clone().lock().unwrap(),
+                file.as_path().to_str().unwrap(),
+            )
+        })
         .collect::<Vec<_>>();
 
     enable_raw_mode().unwrap();
@@ -76,12 +84,32 @@ fn main() {
     let mut stdout = stdout();
     execute!(stdout, Clear(ClearType::All)).unwrap();
 
+    let sh_sink = Arc::clone(&sink);
+    let _sink_handler = thread::spawn(move || loop {
+        thread::sleep(std::time::Duration::from_secs(1));
+
+        println!("sink len: {}", sh_sink.lock().unwrap().len());
+
+        let sink_len = { sh_sink.lock().unwrap().len() };
+
+        if sink_len <= 1 && infinite {
+            let _ = folder_files
+                .iter()
+                .map(|file| {
+                    add_file_to_sink(sh_sink.lock().unwrap(), file.as_path().to_str().unwrap())
+                })
+                .collect::<Vec<_>>();
+        }
+    });
+
+    let ih_sink = Arc::clone(&sink);
     let input_handler = thread::spawn(move || {
         loop {
             if let Event::Key(event) = read().unwrap() {
                 match event.code {
                     KeyCode::Esc | KeyCode::Char('q') => break,
                     KeyCode::Char(' ') => {
+                        let sink = ih_sink.lock().unwrap();
                         if sink.is_paused() {
                             sink.play();
                         } else {
@@ -93,6 +121,8 @@ fn main() {
                     }
                     KeyCode::Char('n') | KeyCode::Char('l') => {
                         // next music in track list
+
+                        let sink = ih_sink.lock().unwrap();
                         sink.skip_one();
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
