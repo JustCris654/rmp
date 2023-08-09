@@ -26,10 +26,10 @@ fn add_file_to_sink(sink: MutexGuard<Sink>, filepath: &str) {
 }
 
 // get files paths in a folder, if rec is true search recursively in the subfolders, and add them in a queue
-fn get_folder_files(folder: &Path, rec: bool) -> io::Result<VecDeque<PathBuf>> {
+fn get_folder_files(folder: &Path, rec: bool) -> io::Result<Vec<PathBuf>> {
     let paths = read_dir(folder).unwrap();
 
-    let mut files: VecDeque<PathBuf> = VecDeque::new();
+    let mut files: Vec<PathBuf> = Vec::new();
 
     for path in paths {
         let path = path.unwrap().path();
@@ -37,7 +37,7 @@ fn get_folder_files(folder: &Path, rec: bool) -> io::Result<VecDeque<PathBuf>> {
         if path.is_dir() && rec {
             files.extend(get_folder_files(&path, rec)?);
         } else {
-            files.push_back(path);
+            files.push(path);
         }
     }
 
@@ -60,7 +60,7 @@ fn main() {
     );
 
     // get all files in the folder, this queue will not be used directly
-    let folder_files: VecDeque<PathBuf> = get_folder_files(filepath, false).unwrap();
+    let folder_files: Vec<PathBuf> = get_folder_files(filepath, false).unwrap();
 
     // get an output stream to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
