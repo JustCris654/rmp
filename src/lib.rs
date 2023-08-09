@@ -1,5 +1,4 @@
 use std::{
-    collections::VecDeque,
     fs::{metadata, read_dir, File},
     io::{self, BufReader},
     path::{Path, PathBuf},
@@ -9,7 +8,8 @@ use std::{
 use rodio::{Decoder, OutputStream, Sink};
 
 pub struct RMPlayer {
-    queue: VecDeque<PathBuf>,
+    queue: Vec<PathBuf>,
+    current: usize,
     sink: Arc<Mutex<Sink>>,
     shuffle: bool,
     infinite: bool,
@@ -17,34 +17,46 @@ pub struct RMPlayer {
 }
 
 impl RMPlayer {
-    pub fn new(&self, path: String, shuffle: bool, infinite: bool) -> Self {
+    pub fn new(path: String, shuffle: bool, infinite: bool) -> Self {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle).unwrap()));
 
+        let queue = get_folder_files(Path::new(&path), true).unwrap();
+
         Self {
-            queue: VecDeque::new(),
+            queue,
+            current: 0,
             sink,
             shuffle,
             infinite,
             path,
         }
     }
+
+    pub fn refill_sink(&self) {
+        let _ = self
+            .queue
+            .iter()
+            .map(|file| self.add_file_to_sink(file.as_path().to_str().unwrap()))
+            .collect::<Vec<_>>();
+    }
+
+    // append a file to the sink
+    fn add_file_to_sink(&self, filepath: &str) {
+        let file = BufReader::new(File::open(filepath).unwrap());
+        let source = Decoder::new(file).unwrap();
+
+        let sink = self.sink.clone(); // get arc reference
+        sink.lock().unwrap().append(source); // lock and append source
+    }
 }
 
-// append a file to the sink
-fn add_file_to_sink(sink: MutexGuard<Sink>, filepath: &str) {
-    let file = BufReader::new(File::open(filepath).unwrap());
-    let source = Decoder::new(file).unwrap();
-
-    sink.append(source);
-}
-
-// get files paths in a folder, if rec is true search recursively in the subfolders, and add them in a VecDeque
-// only flac, wav and mp3 files are added to the VecDeque
-fn get_folder_files(folder: &Path, rec: bool) -> io::Result<VecDeque<PathBuf>> {
+// get files paths in a folder, if rec is true search recursively in the subfolders, and add them in a vector
+// only flac, wav and mp3 files are added to the vector
+fn get_folder_files(folder: &Path, rec: bool) -> io::Result<Vec<PathBuf>> {
     let paths = read_dir(folder).unwrap();
 
-    let mut files: VecDeque<PathBuf> = VecDeque::new();
+    let mut files: Vec<PathBuf> = Vec::new();
 
     for path in paths {
         let path = path.unwrap().path();
@@ -53,9 +65,9 @@ fn get_folder_files(folder: &Path, rec: bool) -> io::Result<VecDeque<PathBuf>> {
             files.extend(get_folder_files(&path, rec)?);
         } else if let Some(ext) = path.extension() {
             match ext.to_str().unwrap() {
-                "flac" => files.push_back(path),
-                "wav" => files.push_back(path),
-                "mp3" => files.push_back(path),
+                "flac" => files.push(path),
+                "wav" => files.push(path),
+                "mp3" => files.push(path),
                 _ => {}
             }
         }
