@@ -64,6 +64,23 @@ impl RMPlayer {
         self.sink.lock().unwrap().play();
     }
 
+    pub fn play_pause(&self) {
+        let sink = self.sink.clone();
+        let sink = sink.lock().unwrap();
+
+        match sink.is_paused() {
+            true => sink.play(),
+            false => sink.pause(),
+        };
+    }
+
+    pub fn next(&self) {
+        let sink = self.sink.clone();
+        let sink = sink.lock().unwrap();
+
+        sink.skip_one();
+    }
+
     pub fn get_sink(&self) -> &Arc<Mutex<Sink>> {
         &self.sink
     }

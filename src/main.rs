@@ -67,29 +67,20 @@ fn main() {
     });
 
     let rmp = Arc::clone(&rmplayer);
-    let sink = rmp.get_sink();
-    let sink = Arc::clone(sink);
     let input_handler = thread::spawn(move || {
         loop {
             if let Event::Key(event) = read().unwrap() {
                 match event.code {
                     KeyCode::Esc | KeyCode::Char('q') => break,
                     KeyCode::Char(' ') => {
-                        let sink = sink.lock().unwrap();
-                        if sink.is_paused() {
-                            sink.play();
-                        } else {
-                            sink.pause();
-                        }
+                        rmp.play_pause();
                     }
                     KeyCode::Char('s') => {
                         // shuffle
                     }
                     KeyCode::Char('n') | KeyCode::Char('l') => {
                         // next music in track list
-
-                        let sink = sink.lock().unwrap();
-                        sink.skip_one();
+                        rmp.next();
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
                         // previous in track list

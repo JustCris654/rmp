@@ -1,9 +1,9 @@
 #+title: RMP Todo
 
-* Refactor with struct in lib.rs [3/5]
+* Refactor with struct in lib.rs [4/5]
 - [X] Write functions to get music files from folder
 - [X] Write function to add music file to the sink
-- [ ] Implement functions to handle the sink (pause, volume up and down, next music)
+- [X] Implement functions to handle the sink (pause, volume up and down, next music)
 - [X] Implement the struct in the main
 - [ ] Move the sink_handler thread to the RMPlayer struct implementation (?)
 
