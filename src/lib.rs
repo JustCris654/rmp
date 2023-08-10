@@ -1,18 +1,19 @@
 use std::{
-    fs::{metadata, read_dir, File},
+    fs::{read_dir, File},
     io::{self, BufReader},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
 
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
+use rand::seq::SliceRandom;
+use rodio::{Decoder, OutputStreamHandle, Sink};
 
 pub struct RMPlayer {
     queue: Vec<PathBuf>,
-    current: usize,
+    _current: usize,
     sink: Arc<Mutex<Sink>>,
-    shuffle: bool,
-    infinite: bool,
+    _shuffle: bool,
+    _infinite: bool,
     path: String,
 }
 
@@ -38,12 +39,17 @@ impl RMPlayer {
         let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle).unwrap()));
         let queue = get_folder_files(Path::new(&path), true).unwrap();
 
+        let queue = match shuffle {
+            true => shuffle_vec(queue),
+            false => queue,
+        };
+
         Self {
             queue,
-            current: 0,
+            _current: 0,
             sink,
-            shuffle,
-            infinite,
+            _shuffle: shuffle,
+            _infinite: infinite,
             path,
         }
     }
@@ -61,6 +67,19 @@ impl RMPlayer {
     pub fn get_sink(&self) -> &Arc<Mutex<Sink>> {
         &self.sink
     }
+
+    pub fn get_path(&self) -> String {
+        self.path.clone()
+    }
+}
+
+fn shuffle_vec<T>(vec: Vec<T>) -> Vec<T> {
+    let mut rng = rand::thread_rng();
+    let mut vec = vec;
+
+    vec.shuffle(&mut rng);
+
+    vec
 }
 
 // get files paths in a folder, if rec is true search recursively in the subfolders, and add them in a vector

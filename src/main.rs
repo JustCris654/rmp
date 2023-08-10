@@ -4,10 +4,10 @@ use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
 use rmp::RMPlayer;
 use rodio::OutputStream;
-use std::fs::{metadata, read_dir};
-use std::io::{self, stdout, BufReader};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::fs::metadata;
+use std::io::stdout;
+use std::path::Path;
+use std::sync::Arc;
 use std::thread;
 
 #[derive(Parser)]
@@ -53,13 +53,13 @@ fn main() {
     // if false do nothing
     let rmp = Arc::clone(&rmplayer);
     let sink = rmp.get_sink();
-    let sh_sink = Arc::clone(sink);
+    let sink = Arc::clone(sink);
     let _sink_handler = thread::spawn(move || loop {
         thread::sleep(std::time::Duration::from_secs(1));
 
-        println!("sink len: {}", sh_sink.lock().unwrap().len());
+        println!("sink len: {}", sink.lock().unwrap().len());
 
-        let sink_len = { sh_sink.lock().unwrap().len() };
+        let sink_len = { sink.lock().unwrap().len() };
 
         if sink_len <= 1 && infinite {
             rmp.fill_sink();
@@ -68,14 +68,14 @@ fn main() {
 
     let rmp = Arc::clone(&rmplayer);
     let sink = rmp.get_sink();
-    let ih_sink = Arc::clone(sink);
+    let sink = Arc::clone(sink);
     let input_handler = thread::spawn(move || {
         loop {
             if let Event::Key(event) = read().unwrap() {
                 match event.code {
                     KeyCode::Esc | KeyCode::Char('q') => break,
                     KeyCode::Char(' ') => {
-                        let sink = ih_sink.lock().unwrap();
+                        let sink = sink.lock().unwrap();
                         if sink.is_paused() {
                             sink.play();
                         } else {
@@ -88,7 +88,7 @@ fn main() {
                     KeyCode::Char('n') | KeyCode::Char('l') => {
                         // next music in track list
 
-                        let sink = ih_sink.lock().unwrap();
+                        let sink = sink.lock().unwrap();
                         sink.skip_one();
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
