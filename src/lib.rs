@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 pub struct RMPlayer {
     queue: Vec<PathBuf>,
@@ -16,11 +16,26 @@ pub struct RMPlayer {
     path: String,
 }
 
+// private methods
 impl RMPlayer {
-    pub fn new(path: String, shuffle: bool, infinite: bool) -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle).unwrap()));
+    // append a file to the sink
+    fn add_file_to_sink(&self, filepath: &str) {
+        let file = BufReader::new(File::open(filepath).unwrap());
+        let source = Decoder::new(file).unwrap();
 
+        let sink = self.sink.clone(); // get arc reference
+        sink.lock().unwrap().append(source); // lock and append source
+    }
+}
+
+impl RMPlayer {
+    pub fn new(
+        stream_handle: OutputStreamHandle,
+        path: String,
+        shuffle: bool,
+        infinite: bool,
+    ) -> Self {
+        let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle).unwrap()));
         let queue = get_folder_files(Path::new(&path), true).unwrap();
 
         Self {
@@ -33,21 +48,18 @@ impl RMPlayer {
         }
     }
 
-    pub fn refill_sink(&self) {
+    pub fn fill_sink(&self) {
         let _ = self
             .queue
             .iter()
             .map(|file| self.add_file_to_sink(file.as_path().to_str().unwrap()))
             .collect::<Vec<_>>();
+
+        self.sink.lock().unwrap().play();
     }
 
-    // append a file to the sink
-    fn add_file_to_sink(&self, filepath: &str) {
-        let file = BufReader::new(File::open(filepath).unwrap());
-        let source = Decoder::new(file).unwrap();
-
-        let sink = self.sink.clone(); // get arc reference
-        sink.lock().unwrap().append(source); // lock and append source
+    pub fn get_sink(&self) -> &Arc<Mutex<Sink>> {
+        &self.sink
     }
 }
 

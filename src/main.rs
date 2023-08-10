@@ -2,9 +2,8 @@ use clap::Parser;
 use crossterm::event::{read, Event, KeyCode};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
-use rodio::{Decoder, OutputStream, Sink};
-use std::collections::VecDeque;
-use std::fs::File;
+use rmp::RMPlayer;
+use rodio::OutputStream;
 use std::fs::{metadata, read_dir};
 use std::io::{self, stdout, BufReader};
 use std::path::{Path, PathBuf};
@@ -18,32 +17,6 @@ struct Args {
     shuffle: bool,
 }
 
-fn add_file_to_sink(sink: MutexGuard<Sink>, filepath: &str) {
-    let file = BufReader::new(File::open(filepath).unwrap());
-    let source = Decoder::new(file).unwrap();
-
-    sink.append(source);
-}
-
-// get files paths in a folder, if rec is true search recursively in the subfolders, and add them in a queue
-fn get_folder_files(folder: &Path, rec: bool) -> io::Result<Vec<PathBuf>> {
-    let paths = read_dir(folder).unwrap();
-
-    let mut files: Vec<PathBuf> = Vec::new();
-
-    for path in paths {
-        let path = path.unwrap().path();
-
-        if path.is_dir() && rec {
-            files.extend(get_folder_files(&path, rec)?);
-        } else {
-            files.push(path);
-        }
-    }
-
-    Ok(files)
-}
-
 fn main() {
     let args = Args::parse();
     let filepath = args.path.unwrap();
@@ -54,29 +27,20 @@ fn main() {
 
     let infinite = true;
 
+    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let rmplayer = Arc::new(RMPlayer::new(
+        stream_handle.clone(),
+        filepath.to_str().unwrap().to_string(),
+        args.shuffle,
+        infinite,
+    ));
+
     assert!(
         !md.is_file(),
         "Not implemented -> start with file and continue with music saved in db"
     );
 
-    // get all files in the folder, this queue will not be used directly
-    let folder_files: Vec<PathBuf> = get_folder_files(filepath, false).unwrap();
-
-    // get an output stream to the default physical sound device
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-
-    let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle).unwrap()));
-
-    // append to the sink all files in the queue
-    let _ = folder_files
-        .iter()
-        .map(|file| {
-            add_file_to_sink(
-                sink.clone().lock().unwrap(),
-                file.as_path().to_str().unwrap(),
-            )
-        })
-        .collect::<Vec<_>>();
+    rmplayer.clone().fill_sink();
 
     enable_raw_mode().unwrap();
 
@@ -87,7 +51,9 @@ fn main() {
     // checks every 1 second if the sink has less than one file in the queue, if true
     // and infinite flag is set reappend the queue of files in the sink
     // if false do nothing
-    let sh_sink = Arc::clone(&sink);
+    let rmp = Arc::clone(&rmplayer);
+    let sink = rmp.get_sink();
+    let sh_sink = Arc::clone(sink);
     let _sink_handler = thread::spawn(move || loop {
         thread::sleep(std::time::Duration::from_secs(1));
 
@@ -96,16 +62,13 @@ fn main() {
         let sink_len = { sh_sink.lock().unwrap().len() };
 
         if sink_len <= 1 && infinite {
-            let _ = folder_files
-                .iter()
-                .map(|file| {
-                    add_file_to_sink(sh_sink.lock().unwrap(), file.as_path().to_str().unwrap())
-                })
-                .collect::<Vec<_>>();
+            rmp.fill_sink();
         }
     });
 
-    let ih_sink = Arc::clone(&sink);
+    let rmp = Arc::clone(&rmplayer);
+    let sink = rmp.get_sink();
+    let ih_sink = Arc::clone(sink);
     let input_handler = thread::spawn(move || {
         loop {
             if let Event::Key(event) = read().unwrap() {
