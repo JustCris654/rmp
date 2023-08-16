@@ -13,7 +13,7 @@ pub struct RMPlayer {
     _current: usize,
     sink: Arc<Mutex<Sink>>,
     _shuffle: bool,
-    _infinite: bool,
+    infinite: bool,
     path: String,
 }
 
@@ -49,7 +49,7 @@ impl RMPlayer {
             _current: 0,
             sink,
             _shuffle: shuffle,
-            _infinite: infinite,
+            infinite,
             path,
         }
     }
@@ -81,12 +81,20 @@ impl RMPlayer {
         sink.skip_one();
     }
 
+    pub fn shuffle_playlist(&mut self) {
+        self.queue = shuffle_vec(self.queue.clone());
+    }
+
     pub fn get_sink(&self) -> &Arc<Mutex<Sink>> {
         &self.sink
     }
 
     pub fn get_path(&self) -> String {
         self.path.clone()
+    }
+
+    pub fn get_infinte(&self) -> bool {
+        self.infinite
     }
 }
 

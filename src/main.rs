@@ -15,6 +15,7 @@ struct Args {
     path: Option<String>,
     #[arg(short = 's', long = "shuffle")]
     shuffle: bool,
+    infinite: bool,
 }
 
 fn main() {
@@ -25,14 +26,12 @@ fn main() {
 
     let md = metadata(filepath).unwrap();
 
-    let infinite = true;
-
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let rmplayer = Arc::new(RMPlayer::new(
         stream_handle.clone(),
         filepath.to_str().unwrap().to_string(),
         args.shuffle,
-        infinite,
+        args.infinite,
     ));
 
     assert!(
@@ -54,11 +53,11 @@ fn main() {
     let rmp = Arc::clone(&rmplayer);
     let sink = rmp.get_sink();
     let sink = Arc::clone(sink);
+    let infinite = rmp.get_infinte();
     let _sink_handler = thread::spawn(move || loop {
         thread::sleep(std::time::Duration::from_secs(1));
 
-        println!("sink len: {}", sink.lock().unwrap().len());
-
+        // println!("sink len: {}", sink.lock().unwrap().len());
         let sink_len = { sink.lock().unwrap().len() };
 
         if sink_len <= 1 && infinite {
@@ -100,5 +99,4 @@ fn main() {
     input_handler.join().unwrap();
 
     disable_raw_mode().unwrap();
-    println!("Raw mode disabled");
 }
