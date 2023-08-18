@@ -1,7 +1,8 @@
 use clap::Parser;
 use crossterm::event::{read, Event, KeyCode};
-use crossterm::execute;
+use crossterm::style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
+use crossterm::{cursor, execute, ExecutableCommand};
 use rmp::RMPlayer;
 use rodio::OutputStream;
 use std::fs::metadata;
@@ -15,7 +16,17 @@ struct Args {
     path: Option<String>,
     #[arg(short = 's', long = "shuffle")]
     shuffle: bool,
+    #[arg(short = 'i', long = "infinite")]
     infinite: bool,
+}
+
+fn print_current_song(rmp: Arc<RMPlayer>) {
+    let current_playing = rmp.get_current_filename();
+    execute!(
+        stdout(),
+        Print(current_playing.to_str().unwrap()),
+        ResetColor
+    ).unwrap();
 }
 
 fn main() {
@@ -47,6 +58,12 @@ fn main() {
     let mut stdout = stdout();
     execute!(stdout, Clear(ClearType::All)).unwrap();
 
+    stdout.execute(cursor::MoveTo(0, 0)).unwrap();
+
+    // print to screen current music
+    let rmp = rmplayer.clone();
+    print_current_song(rmp);
+
     // checks every 1 second if the sink has less than one file in the queue, if true
     // and infinite flag is set reappend the queue of files in the sink
     // if false do nothing
@@ -57,7 +74,6 @@ fn main() {
     let _sink_handler = thread::spawn(move || loop {
         thread::sleep(std::time::Duration::from_secs(1));
 
-        // println!("sink len: {}", sink.lock().unwrap().len());
         let sink_len = { sink.lock().unwrap().len() };
 
         if sink_len <= 1 && infinite {

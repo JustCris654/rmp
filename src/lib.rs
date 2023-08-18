@@ -2,7 +2,7 @@ use std::{
     fs::{read_dir, File},
     io::{self, BufReader},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, ffi::OsStr,
 };
 
 use rand::seq::SliceRandom;
@@ -10,7 +10,7 @@ use rodio::{Decoder, OutputStreamHandle, Sink};
 
 pub struct RMPlayer {
     queue: Vec<PathBuf>,
-    _current: usize,
+    current: usize,
     sink: Arc<Mutex<Sink>>,
     _shuffle: bool,
     infinite: bool,
@@ -46,7 +46,7 @@ impl RMPlayer {
 
         Self {
             queue,
-            _current: 0,
+            current: 0,
             sink,
             _shuffle: shuffle,
             infinite,
@@ -95,6 +95,13 @@ impl RMPlayer {
 
     pub fn get_infinte(&self) -> bool {
         self.infinite
+    }
+
+    pub fn get_current_filename(&self) -> &OsStr {
+        let cur = self.queue.get(self.current).unwrap();
+
+        let cur_name = cur.file_name().unwrap();
+        cur_name
     }
 }
 
