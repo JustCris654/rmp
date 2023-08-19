@@ -1,8 +1,9 @@
 use std::{
+    ffi::OsStr,
     fs::{read_dir, File},
     io::{self, BufReader},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex}, ffi::OsStr,
+    sync::{Arc, Mutex},
 };
 
 use rand::seq::SliceRandom;
@@ -81,6 +82,26 @@ impl RMPlayer {
         sink.skip_one();
     }
 
+    pub fn volume_up(&self) {
+        let sink = self.sink.clone();
+        let sink = sink.lock().unwrap();
+
+        let volume = sink.volume() + 0.1;
+        let volume = if volume >= 1.5 { 1.5 } else { volume };
+
+        sink.set_volume(volume);
+    }
+
+    pub fn volume_down(&self) {
+        let sink = self.sink.clone();
+        let sink = sink.lock().unwrap();
+
+        let volume = sink.volume() - 0.1;
+        let volume = if volume <= 0.0 { 0.0 } else { volume };
+
+        sink.set_volume(volume);
+    }
+
     pub fn shuffle_playlist(&mut self) {
         self.queue = shuffle_vec(self.queue.clone());
     }
@@ -102,6 +123,18 @@ impl RMPlayer {
 
         let cur_name = cur.file_name().unwrap();
         cur_name
+    }
+
+    pub fn get_volume(&self) -> f32 {
+        let sink = self.sink.clone();
+        let sink = sink.lock().unwrap();
+
+        sink.volume()
+    }
+
+    pub fn set_current(&mut self, value: usize) -> usize {
+        self.current = value;
+        self.current
     }
 }
 

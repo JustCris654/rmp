@@ -1,16 +1,10 @@
 #+title: RMP Todo
 
-* Refactor with struct in lib.rs [4/4]
-- [X] Write functions to get music files from folder
-- [X] Write function to add music file to the sink
-- [X] Implement functions to handle the sink (pause, volume up and down, next music)
-- [X] Implement the struct in the main
-
-* RMP TODOs [3/6]
+* RMP TODOs [4/6]
 - [x] Infinite listening reitereting the queue if infinite flag is true
 - [ ] Database
 - [ ] Play previous music
-- [ ] Put rmplayer instance inside a Mutex to be able to mutate it (useful for shuffle)
+- [x] Put rmplayer instance inside a Mutex to be able to mutate it (useful for shuffle)
 - [X] Randomize the queue -> shuffle
 - [X] Infinite listening reitereting the queue
 - [X] Queue files in the folder and listen to them sequentially
