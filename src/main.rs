@@ -20,8 +20,9 @@ struct Args {
     infinite: bool,
 }
 
-fn print_current_song(rmp: &Arc<RMPlayer>) {
+fn print_current_song(rmp: &RMPlayer) {
     let current_playing = rmp.get_current_filename();
+    println!("{}", current_playing.to_str().unwrap());
 
     let mut stdout = stdout();
     stdout.queue(cursor::MoveTo(0, 0)).unwrap();
@@ -34,7 +35,7 @@ fn print_current_song(rmp: &Arc<RMPlayer>) {
     stdout.flush().unwrap();
 }
 
-fn print_volume(rmp: &Arc<RMPlayer>) {
+fn print_volume(rmp: &RMPlayer) {
     let volume = { rmp.get_volume() };
     let volume = (volume * 10.0).round() / 10.0;
 
@@ -68,7 +69,7 @@ fn main() {
         "Not implemented -> start with file and continue with music saved in db"
     );
 
-    rmplayer.clone().fill_sink();
+    rmplayer.fill_sink();
 
     enable_raw_mode().unwrap();
 
@@ -81,49 +82,35 @@ fn main() {
     // checks every 1 second if the sink has less than one file in the queue, if true
     // and infinite flag is set reappend the queue of files in the sink
     // if false do nothing
-    let rmp = Arc::clone(&rmplayer);
-    let sink = rmp.get_sink();
-    let sink = Arc::clone(sink);
-    let infinite = rmp.get_infinte();
+    let infinite = rmplayer.get_infinte();
     let _sink_handler = thread::spawn(move || loop {
         thread::sleep(std::time::Duration::from_secs(1));
 
-        print_current_song(&rmp);
+        print_current_song(&rmplayer);
 
-        let sink_len = { sink.lock().unwrap().len() };
-
-        if sink_len <= 1 && infinite {
-            rmp.fill_sink();
+        if rmplayer.get_sink_len() <= 1 && infinite {
+            rmplayer.fill_sink();
         }
     });
 
-    let rmp = Arc::clone(&rmplayer);
     let input_handler = thread::spawn(move || {
         loop {
             if let Event::Key(event) = read().unwrap() {
                 match event.code {
                     KeyCode::Esc | KeyCode::Char('q') => break,
-                    KeyCode::Char(' ') => {
-                        rmp.play_pause();
-                    }
+                    KeyCode::Char(' ') => {}
                     KeyCode::Char('s') => {
                         // shuffle
                     }
                     KeyCode::Char('n') | KeyCode::Char('l') => {
                         // next music in track list
-                        rmp.next();
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
                         // previous in track list
                     }
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        rmp.volume_up();
-                        print_volume(&rmp);
-                    }
+                    KeyCode::Char('k') | KeyCode::Up => {}
                     KeyCode::Char('j') | KeyCode::Down => {
                         // volume down
-                        rmp.volume_down();
-                        print_volume(&rmp);
                     }
                     _ => {}
                 }
