@@ -8,7 +8,7 @@ use rodio::OutputStream;
 use std::fs::metadata;
 use std::io::{stdout, Write};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
 #[derive(Parser)]
@@ -20,8 +20,9 @@ struct Args {
     infinite: bool,
 }
 
-fn print_current_song(rmp: &Arc<RMPlayer>) {
+fn print_current_song(rmp: &RMPlayer) {
     let current_playing = rmp.get_current_filename();
+    println!("{}", current_playing.to_str().unwrap());
 
     let mut stdout = stdout();
     stdout.queue(cursor::MoveTo(0, 0)).unwrap();
@@ -34,7 +35,7 @@ fn print_current_song(rmp: &Arc<RMPlayer>) {
     stdout.flush().unwrap();
 }
 
-fn print_volume(rmp: &Arc<RMPlayer>) {
+fn print_volume(rmp: &RMPlayer) {
     let volume = { rmp.get_volume() };
     let volume = (volume * 10.0).round() / 10.0;
 
@@ -47,6 +48,23 @@ fn print_volume(rmp: &Arc<RMPlayer>) {
     stdout.flush().unwrap();
 }
 
+enum ChannelCommands {
+    PlayPause,
+    Next,
+    Previous,
+    VolumeUp,
+    VolumeDown,
+    Forward,
+    Backward,
+    Shuffle,
+}
+
+fn check_fill_sink(rmp: &RMPlayer) {
+    if rmp.get_sink_len() <= 1 && rmp.get_infinte() {
+        rmp.fill_sink();
+    }
+}
+
 fn main() {
     let args = Args::parse();
     let filepath = args.path.unwrap();
@@ -56,19 +74,20 @@ fn main() {
     let md = metadata(filepath).unwrap();
 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let rmplayer = Arc::new(RMPlayer::new(
+    let rmplayer = RMPlayer::new(
         stream_handle.clone(),
         filepath.to_str().unwrap().to_string(),
         args.shuffle,
         args.infinite,
-    ));
+    );
+    let (tx, rx): (Sender<ChannelCommands>, Receiver<ChannelCommands>) = mpsc::channel();
 
     assert!(
         !md.is_file(),
         "Not implemented -> start with file and continue with music saved in db"
     );
 
-    rmplayer.clone().fill_sink();
+    rmplayer.fill_sink();
 
     enable_raw_mode().unwrap();
 
@@ -81,49 +100,67 @@ fn main() {
     // checks every 1 second if the sink has less than one file in the queue, if true
     // and infinite flag is set reappend the queue of files in the sink
     // if false do nothing
-    let rmp = Arc::clone(&rmplayer);
-    let sink = rmp.get_sink();
-    let sink = Arc::clone(sink);
-    let infinite = rmp.get_infinte();
     let _sink_handler = thread::spawn(move || loop {
-        thread::sleep(std::time::Duration::from_secs(1));
+        thread::sleep(std::time::Duration::from_millis(100));
 
-        print_current_song(&rmp);
-
-        let sink_len = { sink.lock().unwrap().len() };
-
-        if sink_len <= 1 && infinite {
-            rmp.fill_sink();
+        // check for user input
+        if let Ok(input) = rx.try_recv() {
+            match input {
+                ChannelCommands::PlayPause => rmplayer.play_pause(),
+                ChannelCommands::Next => {
+                    check_fill_sink(&rmplayer);
+                    rmplayer.next();
+                }
+                ChannelCommands::Previous => panic!("TODO: go to previous track"),
+                ChannelCommands::VolumeUp => rmplayer.volume_up(),
+                ChannelCommands::VolumeDown => rmplayer.volume_down(),
+                ChannelCommands::Forward => panic!("TODO: forward 5 seconds"),
+                ChannelCommands::Backward => panic!("TODO: backward 5 seconds"),
+                ChannelCommands::Shuffle => panic!("TODO: shuffle"),
+            }
         }
+
+        // print current song title on the terminal
+        print_current_song(&rmplayer);
+
+        // append tracks to the sink again if only one remain
+        check_fill_sink(&rmplayer);
     });
 
-    let rmp = Arc::clone(&rmplayer);
     let input_handler = thread::spawn(move || {
         loop {
             if let Event::Key(event) = read().unwrap() {
                 match event.code {
                     KeyCode::Esc | KeyCode::Char('q') => break,
                     KeyCode::Char(' ') => {
-                        rmp.play_pause();
+                        tx.send(ChannelCommands::PlayPause).unwrap();
                     }
                     KeyCode::Char('s') => {
                         // shuffle
+                        tx.send(ChannelCommands::Shuffle).unwrap();
                     }
                     KeyCode::Char('n') | KeyCode::Char('l') => {
                         // next music in track list
-                        rmp.next();
+                        tx.send(ChannelCommands::Next).unwrap();
                     }
                     KeyCode::Char('p') | KeyCode::Char('h') => {
                         // previous in track list
+                        tx.send(ChannelCommands::Previous).unwrap();
                     }
                     KeyCode::Char('k') | KeyCode::Up => {
-                        rmp.volume_up();
-                        print_volume(&rmp);
+                        tx.send(ChannelCommands::VolumeUp).unwrap();
                     }
                     KeyCode::Char('j') | KeyCode::Down => {
                         // volume down
-                        rmp.volume_down();
-                        print_volume(&rmp);
+                        tx.send(ChannelCommands::VolumeDown).unwrap();
+                    }
+                    KeyCode::Right => {
+                        // volume go forward
+                        tx.send(ChannelCommands::Forward).unwrap();
+                    }
+                    KeyCode::Left => {
+                        // volume go backward
+                        tx.send(ChannelCommands::Backward).unwrap();
                     }
                     _ => {}
                 }

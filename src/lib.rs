@@ -12,7 +12,7 @@ use rodio::{Decoder, OutputStreamHandle, Sink};
 pub struct RMPlayer {
     queue: Vec<PathBuf>,
     current: usize,
-    sink: Arc<Mutex<Sink>>,
+    sink: Sink,
     _shuffle: bool,
     infinite: bool,
     path: String,
@@ -25,8 +25,7 @@ impl RMPlayer {
         let file = BufReader::new(File::open(filepath).unwrap());
         let source = Decoder::new(file).unwrap();
 
-        let sink = self.sink.clone(); // get arc reference
-        sink.lock().unwrap().append(source); // lock and append source
+        self.sink.append(source); // lock and append source
     }
 }
 
@@ -37,7 +36,7 @@ impl RMPlayer {
         shuffle: bool,
         infinite: bool,
     ) -> Self {
-        let sink = Arc::new(Mutex::new(Sink::try_new(&stream_handle).unwrap()));
+        let sink = Sink::try_new(&stream_handle).unwrap();
         let queue = get_folder_files(Path::new(&path), true).unwrap();
 
         let queue = match shuffle {
@@ -62,52 +61,44 @@ impl RMPlayer {
             .map(|file| self.add_file_to_sink(file.as_path().to_str().unwrap()))
             .collect::<Vec<_>>();
 
-        self.sink.lock().unwrap().play();
+        self.sink.play();
     }
 
     pub fn play_pause(&self) {
-        let sink = self.sink.clone();
-        let sink = sink.lock().unwrap();
-
-        match sink.is_paused() {
-            true => sink.play(),
-            false => sink.pause(),
+        match self.sink.is_paused() {
+            true => self.sink.play(),
+            false => self.sink.pause(),
         };
     }
 
     pub fn next(&self) {
-        let sink = self.sink.clone();
-        let sink = sink.lock().unwrap();
-
-        sink.skip_one();
+        self.sink.skip_one();
     }
 
     pub fn volume_up(&self) {
-        let sink = self.sink.clone();
-        let sink = sink.lock().unwrap();
-
-        let volume = sink.volume() + 0.1;
+        let volume = self.sink.volume() + 0.1;
         let volume = if volume >= 1.5 { 1.5 } else { volume };
 
-        sink.set_volume(volume);
+        self.sink.set_volume(volume);
     }
 
     pub fn volume_down(&self) {
-        let sink = self.sink.clone();
-        let sink = sink.lock().unwrap();
-
-        let volume = sink.volume() - 0.1;
+        let volume = self.sink.volume() - 0.1;
         let volume = if volume <= 0.0 { 0.0 } else { volume };
 
-        sink.set_volume(volume);
+        self.sink.set_volume(volume);
     }
 
     pub fn shuffle_playlist(&mut self) {
         self.queue = shuffle_vec(self.queue.clone());
     }
 
-    pub fn get_sink(&self) -> &Arc<Mutex<Sink>> {
+    pub fn get_sink(&self) -> &Sink {
         &self.sink
+    }
+
+    pub fn get_sink_len(&self) -> usize {
+        self.sink.len()
     }
 
     pub fn get_path(&self) -> String {
@@ -126,10 +117,7 @@ impl RMPlayer {
     }
 
     pub fn get_volume(&self) -> f32 {
-        let sink = self.sink.clone();
-        let sink = sink.lock().unwrap();
-
-        sink.volume()
+        self.sink.volume()
     }
 
     pub fn set_current(&mut self, value: usize) -> usize {
