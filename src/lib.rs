@@ -60,8 +60,6 @@ impl RMPlayer {
             .iter()
             .map(|file| self.add_file_to_sink(file.as_path().to_str().unwrap()))
             .collect::<Vec<_>>();
-
-        self.sink.play();
     }
 
     pub fn play_pause(&self) {
@@ -71,8 +69,14 @@ impl RMPlayer {
         };
     }
 
-    pub fn next(&self) {
+    pub fn next(&mut self) {
         self.sink.skip_one();
+
+        self.current = if self.current >= self.queue.len() {
+            0
+        } else {
+            self.current + 1
+        };
     }
 
     pub fn volume_up(&self) {
@@ -89,6 +93,9 @@ impl RMPlayer {
         self.sink.set_volume(volume);
     }
 
+    // TODO: save current element (self.queue.get(self.current))
+    // shuffle all the others and then put back the current element
+    // in the first position
     pub fn shuffle_playlist(&mut self) {
         self.queue = shuffle_vec(self.queue.clone());
     }

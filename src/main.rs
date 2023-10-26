@@ -75,7 +75,7 @@ fn main() {
     let md = metadata(filepath).unwrap();
 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let rmplayer = RMPlayer::new(
+    let mut rmplayer = RMPlayer::new(
         stream_handle.clone(),
         filepath.to_str().unwrap().to_string(),
         args.shuffle,
@@ -173,4 +173,5 @@ fn main() {
     input_handler.join().unwrap();
 
     disable_raw_mode().unwrap();
+    println!("");
 }
