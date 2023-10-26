@@ -22,7 +22,6 @@ struct Args {
 
 fn print_current_song(rmp: &RMPlayer) {
     let current_playing = rmp.get_current_filename();
-    println!("{}", current_playing.to_str().unwrap());
 
     let mut stdout = stdout();
     stdout.queue(cursor::MoveTo(0, 0)).unwrap();
@@ -37,12 +36,14 @@ fn print_current_song(rmp: &RMPlayer) {
 
 fn print_volume(rmp: &RMPlayer) {
     let volume = { rmp.get_volume() };
-    let volume = (volume * 10.0).round() / 10.0;
+    let volume = (volume * 100.0).round();
+
+    let volume = format!("Volume: {}", volume);
 
     let mut stdout = stdout();
     stdout.queue(cursor::MoveTo(0, 2)).unwrap();
     stdout.queue(Clear(ClearType::CurrentLine)).unwrap();
-    stdout.queue(Print(volume.to_string())).unwrap();
+    stdout.queue(Print(volume)).unwrap();
     stdout.queue(ResetColor).unwrap();
 
     stdout.flush().unwrap();
@@ -94,14 +95,11 @@ fn main() {
     // clear terminal
     execute!(stdout(), Clear(ClearType::All)).unwrap();
 
-    // print to screen current music
-    print_current_song(&rmplayer);
-
     // checks every 1 second if the sink has less than one file in the queue, if true
     // and infinite flag is set reappend the queue of files in the sink
     // if false do nothing
     let _sink_handler = thread::spawn(move || loop {
-        thread::sleep(std::time::Duration::from_millis(100));
+        thread::sleep(std::time::Duration::from_millis(10));
 
         // check for user input
         if let Ok(input) = rx.try_recv() {
@@ -120,8 +118,12 @@ fn main() {
             }
         }
 
+        // clear terminal
+        execute!(stdout(), Clear(ClearType::All)).unwrap();
+
         // print current song title on the terminal
         print_current_song(&rmplayer);
+        print_volume(&rmplayer);
 
         // append tracks to the sink again if only one remain
         check_fill_sink(&rmplayer);
